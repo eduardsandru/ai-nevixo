@@ -2,15 +2,12 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 
-// Definim tipurile de modele permise pentru a evita eroarea TypeScript
-type ModelType = 'GPT-5' | 'Claude 4' | 'Gemini 3' | 'Sora 3';
-
 export default function AINevixo() {
   const [input, setInput] = useState('');
-  const [activeModel, setActiveModel] = useState<ModelType>('GPT-5');
+  const [activeModel, setActiveModel] = useState('GPT-5');
   const [isThinking, setIsThinking] = useState(false);
 
-  const modelColors: Record<ModelType, string> = {
+  const modelColors = {
     'GPT-5': 'from-cyan-500 to-blue-600',
     'Claude 4': 'from-orange-400 to-red-500',
     'Gemini 3': 'from-blue-400 to-purple-600',
@@ -28,7 +25,7 @@ export default function AINevixo() {
         <motion.div 
           animate={{ scale: isThinking ? [1, 1.2, 1] : [1, 1.05, 1], rotate: isThinking ? 360 : 0 }}
           transition={{ duration: 3, repeat: Infinity }}
-          className={`w-40 h-40 rounded-full bg-gradient-to-tr ${modelColors[activeModel]} blur-2xl opacity-70 shadow-[0_0_80px_rgba(6,182,212,0.4)]`}
+          className={`w-40 h-40 rounded-full bg-gradient-to-tr ${(modelColors as any)[activeModel]} blur-2xl opacity-70 shadow-[0_0_80px_rgba(6,182,212,0.4)]`}
         />
         
         <h2 className="mt-12 text-5xl font-extralight text-center tracking-tight">Cu ce te pot ajuta astăzi?</h2>
@@ -42,7 +39,7 @@ export default function AINevixo() {
           />
           
           <div className="absolute bottom-6 left-6 flex gap-3">
-            {(Object.keys(modelColors) as ModelType[]).map((model) => (
+            {Object.keys(modelColors).map((model) => (
               <button
                 key={model}
                 onClick={() => setActiveModel(model)}
