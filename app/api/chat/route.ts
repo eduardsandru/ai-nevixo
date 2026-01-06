@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 export async function POST(req: Request) {
   try {
     const apiKey = process.env.GOOGLE_API_KEY;
-    if (!apiKey) return NextResponse.json({ text: "Lipsește cheia API." }, { status: 500 });
+    if (!apiKey) return NextResponse.json({ text: "Lipsește cheia API în Vercel." }, { status: 500 });
 
     const { prompt } = await req.json();
     const genAI = new GoogleGenerativeAI(apiKey);
