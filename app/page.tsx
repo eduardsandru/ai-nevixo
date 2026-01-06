@@ -1,24 +1,48 @@
 "use client";
+import "./globals.css";
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 
+type ModelType = 'GPT-5' | 'Claude 4' | 'Gemini 3' | 'Sora 3';
+
 export default function AINevixo() {
   const [input, setInput] = useState('');
-  const [activeModel, setActiveModel] = useState('GPT-5');
+  const [response, setResponse] = useState('');
+  const [activeModel, setActiveModel] = useState<ModelType>('GPT-5');
   const [isThinking, setIsThinking] = useState(false);
 
-  const modelColors = {
+  const modelColors: Record<ModelType, string> = {
     'GPT-5': 'from-cyan-500 to-blue-600',
     'Claude 4': 'from-orange-400 to-red-500',
     'Gemini 3': 'from-blue-400 to-purple-600',
     'Sora 3': 'from-pink-500 to-rose-600'
   };
 
+  const handleSend = async () => {
+    if (!input.trim()) return;
+    setIsThinking(true);
+    setResponse(""); // Resetăm răspunsul vechi
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: input, model: activeModel }),
+      });
+      const data = await res.json();
+      setResponse(data.text);
+    } catch (error) {
+      setResponse("Eroare la comunicarea cu sistemul.");
+    } finally {
+      setIsThinking(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#0A0A0B] text-white font-sans overflow-hidden">
+    <div className="min-h-screen bg-[#0A0A0B] text-white font-sans overflow-y-auto pb-20">
       <nav className="p-6 flex justify-between items-center border-b border-white/5 bg-black/50 backdrop-blur-md fixed w-full z-50">
         <h1 className="text-2xl font-bold tracking-tighter bg-gradient-to-r from-cyan-400 to-violet-500 bg-clip-text text-transparent">AI NEVIXO</h1>
-        <div className="flex gap-4 text-sm text-gray-400"><span>Models: 2026 Active</span><div className="w-2 h-2 rounded-full bg-green-500 animate-pulse mt-1.5" /></div>
+        <div className="flex gap-4 text-sm text-gray-400"><span>2026 Online</span><div className="w-2 h-2 rounded-full bg-green-500 animate-pulse mt-1.5" /></div>
       </nav>
 
       <main className="max-w-4xl mx-auto pt-40 px-6 flex flex-col items-center">
@@ -28,21 +52,27 @@ export default function AINevixo() {
           className={`w-40 h-40 rounded-full bg-gradient-to-tr ${(modelColors as any)[activeModel]} blur-2xl opacity-70 shadow-[0_0_80px_rgba(6,182,212,0.4)]`}
         />
         
-        <h2 className="mt-12 text-5xl font-extralight text-center tracking-tight">Cu ce te pot ajuta astăzi?</h2>
+        <h2 className="mt-12 text-5xl font-extralight text-center tracking-tight">AI Nevixo v1.0</h2>
 
-        <div className="w-full mt-16 relative group">
+        {/* Zona de răspuns */}
+        {response && (
+          <div className="w-full mt-10 p-8 bg-white/5 border border-white/10 rounded-3xl text-gray-200 leading-relaxed whitespace-pre-wrap shadow-xl">
+            {response}
+          </div>
+        )}
+
+        <div className="w-full mt-12 relative group mb-10">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Introduceți un prompt pentru text, imagine sau video..."
-            className="w-full bg-[#18181B]/80 backdrop-blur-xl border border-white/10 rounded-3xl p-8 h-40 focus:outline-none focus:border-cyan-500/50 transition-all shadow-2xl text-xl"
+            onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }}}
+            placeholder="Pune o întrebare..."
+            className="w-full bg-[#18181B]/80 backdrop-blur-xl border border-white/10 rounded-3xl p-8 h-40 focus:outline-none focus:border-cyan-500/50 transition-all shadow-2xl text-xl resize-none"
           />
           
           <div className="absolute bottom-6 left-6 flex gap-3">
-            {Object.keys(modelColors).map((model) => (
-              <button
-                key={model}
-                onClick={() => setActiveModel(model)}
+            {(Object.keys(modelColors) as ModelType[]).map((model) => (
+              <button key={model} onClick={() => setActiveModel(model)}
                 className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${
                   activeModel === model ? 'bg-white text-black scale-110' : 'bg-white/5 hover:bg-white/10 text-gray-400'
                 }`}
@@ -52,11 +82,10 @@ export default function AINevixo() {
             ))}
           </div>
 
-          <button 
-            onClick={() => setIsThinking(!isThinking)}
-            className="absolute bottom-6 right-6 bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-8 py-3 rounded-2xl font-bold hover:scale-105 transition-transform shadow-lg"
+          <button onClick={handleSend} disabled={isThinking}
+            className="absolute bottom-6 right-6 bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-8 py-3 rounded-2xl font-bold hover:scale-105 disabled:opacity-50 transition-all shadow-lg"
           >
-            TRIMITE
+            {isThinking ? "PROCESARE..." : "TRIMITE"}
           </button>
         </div>
       </main>
