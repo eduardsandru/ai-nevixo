@@ -2,12 +2,15 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 
+// Definim tipurile de modele permise pentru a evita eroarea TypeScript
+type ModelType = 'GPT-5' | 'Claude 4' | 'Gemini 3' | 'Sora 3';
+
 export default function AINevixo() {
   const [input, setInput] = useState('');
-  const [activeModel, setActiveModel] = useState('GPT-5');
+  const [activeModel, setActiveModel] = useState<ModelType>('GPT-5');
   const [isThinking, setIsThinking] = useState(false);
 
-  const modelColors = {
+  const modelColors: Record<ModelType, string> = {
     'GPT-5': 'from-cyan-500 to-blue-600',
     'Claude 4': 'from-orange-400 to-red-500',
     'Gemini 3': 'from-blue-400 to-purple-600',
@@ -39,7 +42,7 @@ export default function AINevixo() {
           />
           
           <div className="absolute bottom-6 left-6 flex gap-3">
-            {Object.keys(modelColors).map((model) => (
+            {(Object.keys(modelColors) as ModelType[]).map((model) => (
               <button
                 key={model}
                 onClick={() => setActiveModel(model)}
