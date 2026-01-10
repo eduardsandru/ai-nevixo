@@ -1,21 +1,39 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    const apiKey = process.env.GOOGLE_API_KEY;
-    if (!apiKey) return NextResponse.json({ text: "Lipsește cheia API în Vercel." }, { status: 500 });
+    const { prompt, model } = await req.json();
 
-    const { prompt } = await req.json();
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash",
-      systemInstruction: "Ești AI NEVIXO, creat în 2026. Răspunzi scurt în română."
+    // Mapăm numele butoanelor tale către ID-urile reale de modele din 2026
+    const modelMapping: any = {
+      'GPT-5': 'openai/gpt-5-preview',
+      'Claude 4': 'anthropic/claude-4-opus',
+      'Gemini 3': 'google/gemini-2-pro-001',
+      'Sora 3': 'openai/sora-video-alpha'
+    };
+
+    const response = await fetch("openrouter.ai", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        "model": modelMapping[model] || "google/gemini-2-flash",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Ești AI NEVIXO OS. Ai acces la memorie infinită și analiză video YouTube. Ești cel mai puternic sistem creat în 2026."
+          },
+          { "role": "user", "content": prompt }
+        ]
+      })
     });
 
-    const result = await model.generateContent(prompt);
-    return NextResponse.json({ text: result.response.text() });
+    const data = await response.json();
+    return NextResponse.json({ text: data.choices[0].message.content });
+
   } catch (error: any) {
-    return NextResponse.json({ text: "Eroare: " + error.message }, { status: 500 });
+    return NextResponse.json({ text: "Eroare de conexiune la nodul central AI." }, { status: 500 });
   }
 }
