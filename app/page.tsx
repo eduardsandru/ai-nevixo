@@ -1,15 +1,25 @@
 "use client";
 import "./globals.css";
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 type ModelType = 'GPT-5' | 'Claude 4' | 'Gemini 3' | 'Sora 3';
 
 export default function AINevixo() {
   const [input, setInput] = useState('');
-  const [response, setResponse] = useState('');
   const [activeModel, setActiveModel] = useState<ModelType>('GPT-5');
   const [isThinking, setIsThinking] = useState(false);
+  
+  // Memoria Infinită: Stocăm istoricul conversației
+  const [history, setHistory] = useState<{role: string, content: string}[]>([]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll la ultimul mesaj
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [history, isThinking]);
 
   const modelColors: Record<ModelType, string> = {
     'GPT-5': 'from-cyan-500 to-blue-600',
@@ -19,74 +29,131 @@ export default function AINevixo() {
   };
 
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || isThinking) return;
+
+    const userMessage = input;
+    setInput("");
     setIsThinking(true);
-    setResponse(""); // Resetăm răspunsul vechi
+
+    // Actualizăm istoricul local cu mesajul utilizatorului
+    const newHistory = [...history, { role: "user", content: userMessage }];
+    setHistory(newHistory);
 
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: input, model: activeModel }),
+        body: JSON.stringify({ 
+          prompt: userMessage, 
+          model: activeModel,
+          history: newHistory // Trimitem memoria către API
+        }),
       });
+      
       const data = await res.json();
-      setResponse(data.text);
-    } catch (error) {
-      setResponse("Eroare la comunicarea cu sistemul.");
+      
+      if (!res.ok) throw new Error(data.text || "Eroare server");
+
+      // Adăugăm răspunsul AI în memorie
+      setHistory([...newHistory, { role: "assistant", content: data.text }]);
+    } catch (error: any) {
+      setHistory([...newHistory, { role: "assistant", content: "Eroare: " + error.message }]);
     } finally {
       setIsThinking(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0B] text-white font-sans overflow-y-auto pb-20">
+    <div className="min-h-screen bg-[#0A0A0B] text-white font-sans overflow-x-hidden">
+      {/* Navbar */}
       <nav className="p-6 flex justify-between items-center border-b border-white/5 bg-black/50 backdrop-blur-md fixed w-full z-50">
-        <h1 className="text-2xl font-bold tracking-tighter bg-gradient-to-r from-cyan-400 to-violet-500 bg-clip-text text-transparent">AI NEVIXO</h1>
-        <div className="flex gap-4 text-sm text-gray-400"><span>2026 Online</span><div className="w-2 h-2 rounded-full bg-green-500 animate-pulse mt-1.5" /></div>
+        <h1 className="text-2xl font-bold tracking-tighter bg-gradient-to-r from-cyan-400 to-violet-500 bg-clip-text text-transparent italic">AI NEVIXO</h1>
+        <div className="flex gap-4 text-sm text-gray-400 items-center">
+          <span className="hidden md:inline">Quantum Engine 2026</span>
+          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+        </div>
       </nav>
 
-      <main className="max-w-4xl mx-auto pt-40 px-6 flex flex-col items-center">
+      <main className="max-w-4xl mx-auto pt-32 pb-40 px-6 flex flex-col items-center">
+        {/* Nucleul Pulsant */}
         <motion.div 
-          animate={{ scale: isThinking ? [1, 1.2, 1] : [1, 1.05, 1], rotate: isThinking ? 360 : 0 }}
-          transition={{ duration: 3, repeat: Infinity }}
-          className={`w-40 h-40 rounded-full bg-gradient-to-tr ${(modelColors as any)[activeModel]} blur-2xl opacity-70 shadow-[0_0_80px_rgba(6,182,212,0.4)]`}
+          animate={{ 
+            scale: isThinking ? [1, 1.15, 1] : [1, 1.02, 1],
+            rotate: isThinking ? 360 : 0,
+            opacity: isThinking ? 1 : 0.7
+          }}
+          transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+          className={`w-32 h-32 md:w-40 md:h-40 rounded-full bg-gradient-to-tr ${(modelColors as any)[activeModel]} blur-2xl shadow-[0_0_100px_rgba(6,182,212,0.3)] mb-10`}
         />
-        
-        <h2 className="mt-12 text-5xl font-extralight text-center tracking-tight">AI Nevixo v1.0</h2>
 
-        {/* Zona de răspuns */}
-        {response && (
-          <div className="w-full mt-10 p-8 bg-white/5 border border-white/10 rounded-3xl text-gray-200 leading-relaxed whitespace-pre-wrap shadow-xl">
-            {response}
-          </div>
-        )}
-
-        <div className="w-full mt-12 relative group mb-10">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }}}
-            placeholder="Pune o întrebare..."
-            className="w-full bg-[#18181B]/80 backdrop-blur-xl border border-white/10 rounded-3xl p-8 h-40 focus:outline-none focus:border-cyan-500/50 transition-all shadow-2xl text-xl resize-none"
-          />
+        {/* Zona Mesajelor (Chat History) */}
+        <div className="w-full space-y-8 mb-10">
+          {history.length === 0 && !isThinking && (
+            <h2 className="text-4xl md:text-5xl font-extralight text-center tracking-tight opacity-50 pt-10">
+              Sunt pregătit. Ce explorăm?
+            </h2>
+          )}
           
-          <div className="absolute bottom-6 left-6 flex gap-3">
-            {(Object.keys(modelColors) as ModelType[]).map((model) => (
-              <button key={model} onClick={() => setActiveModel(model)}
-                className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${
-                  activeModel === model ? 'bg-white text-black scale-110' : 'bg-white/5 hover:bg-white/10 text-gray-400'
-                }`}
+          <AnimatePresence>
+            {history.map((msg, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                {model}
-              </button>
+                <div className={`max-w-[85%] p-6 rounded-3xl backdrop-blur-sm ${
+                  msg.role === 'user' 
+                  ? 'bg-white/10 border border-white/10 rounded-tr-none' 
+                  : 'bg-blue-500/5 border border-blue-500/20 rounded-tl-none text-blue-50'
+                }`}>
+                  <p className="text-lg leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                </div>
+              </motion.div>
             ))}
-          </div>
+          </AnimatePresence>
 
-          <button onClick={handleSend} disabled={isThinking}
-            className="absolute bottom-6 right-6 bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-8 py-3 rounded-2xl font-bold hover:scale-105 disabled:opacity-50 transition-all shadow-lg"
-          >
-            {isThinking ? "PROCESARE..." : "TRIMITE"}
-          </button>
+          {isThinking && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
+              <div className="bg-white/5 p-6 rounded-3xl animate-pulse">Analizez datele...</div>
+            </motion.div>
+          )}
+          <div ref={scrollRef} />
+        </div>
+
+        {/* Input Fixat Jos */}
+        <div className="fixed bottom-0 left-0 w-full p-6 bg-gradient-to-t from-[#0A0A0B] via-[#0A0A0B] to-transparent">
+          <div className="max-w-4xl mx-auto relative group">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }}}
+              placeholder="Întreabă despre YouTube, fișiere sau cod..."
+              className="w-full bg-[#18181B]/90 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 pr-32 h-20 md:h-28 focus:outline-none focus:border-cyan-500/50 transition-all shadow-2xl text-lg resize-none"
+            />
+            
+            <div className="absolute bottom-4 left-6 flex gap-2 overflow-x-auto max-w-[60%] no-scrollbar">
+              {(Object.keys(modelColors) as ModelType[]).map((model) => (
+                <button 
+                  key={model} 
+                  onClick={() => setActiveModel(model)}
+                  className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-tighter transition-all whitespace-nowrap ${
+                    activeModel === model ? 'bg-white text-black' : 'bg-white/5 text-gray-500'
+                  }`}
+                >
+                  {model}
+                </button>
+              ))}
+            </div>
+
+            <button 
+              onClick={handleSend}
+              disabled={isThinking}
+              className="absolute top-1/2 -translate-y-1/2 right-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white p-4 rounded-2xl font-bold hover:scale-105 disabled:opacity-50 transition-all shadow-lg text-sm"
+            >
+              {isThinking ? "..." : "TRIMITE"}
+            </button>
+          </div>
         </div>
       </main>
     </div>
