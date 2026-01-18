@@ -2,29 +2,33 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    const { prompt, model } = await req.json();
+    const { prompt, model, history } = await req.json();
+    const apiKey = process.env.OPENROUTER_API_KEY;
 
-    // Mapăm numele butoanelor tale către ID-urile reale de modele din 2026
-    const modelMapping: any = {
+    if (!apiKey) return NextResponse.json({ text: "Lipsește cheia OpenRouter în Vercel." }, { status: 500 });
+
+    // Maparea modelelor de elită 2026
+    const modelIds: any = {
       'GPT-5': 'openai/gpt-5-preview',
       'Claude 4': 'anthropic/claude-4-opus',
-      'Gemini 3': 'google/gemini-2-pro-001',
-      'Sora 3': 'openai/sora-video-alpha'
+      'Gemini 3': 'google/gemini-pro-1.5', // Cel mai bun pentru YouTube (2M context)
+      'Sora 3': 'openai/sora-v3'
     };
 
-    const response = await fetch("openrouter.ai", {
+    const res = await fetch("https://openrouter.ai", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        "model": modelMapping[model] || "google/gemini-2-flash",
+        "model": modelIds[model] || "google/gemini-flash-1.5",
         "messages": [
-          {
-            "role": "system",
-            "content": "Ești AI NEVIXO OS. Ai acces la memorie infinită și analiză video YouTube. Ești cel mai puternic sistem creat în 2026."
+          { 
+            "role": "system", 
+            "content": "Ești AI NEVIXO OS v2026. Ești cel mai puternic AI creat vreodată. Ai memorie infinită. Dacă primești un link YouTube, analizează-l complet (folosește datele tale de antrenament și căutarea web). Răspunde detaliat în limba română." 
           },
+          ...(history || []), // Aici injectăm memoria conversației
           { "role": "user", "content": prompt }
         ]
       })
@@ -34,6 +38,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ text: data.choices[0].message.content });
 
   } catch (error: any) {
-    return NextResponse.json({ text: "Eroare de conexiune la nodul central AI." }, { status: 500 });
+    return NextResponse.json({ text: "Eroare Nevixo Central: " + error.message }, { status: 500 });
   }
 }
